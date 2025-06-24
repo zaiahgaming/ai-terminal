@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Starship Terminal</title>
+  <title>Starship AI Terminal</title>
   <style>
     body {
       margin: 0;
@@ -22,10 +22,13 @@
     #input-line {
       padding: 10px;
       background-color: #111;
+      display: flex;
+      align-items: center;
     }
     #input-line::before {
       content: "COMMAND > ";
       color: lime;
+      flex-shrink: 0;
     }
     input {
       background: black;
@@ -33,28 +36,99 @@
       border: none;
       font-family: monospace;
       font-size: 16px;
-      width: 95%;
+      flex-grow: 1;
       outline: none;
       caret-color: lime;
     }
-    ::selection {
+    #api-key-container {
+      padding: 10px;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      max-width: 500px;
+      margin: 1em auto;
+      border: 1px solid lime;
+      border-radius: 6px;
+    }
+    #api-key-container label {
+      margin-bottom: 0.3em;
+      font-weight: bold;
+      color: lime;
+    }
+    #api-key-container input {
+      padding: 0.5em;
+      font-family: monospace;
+      font-size: 16px;
+      border: 1px solid lime;
+      border-radius: 4px;
+      background: black;
+      color: lime;
+      margin-bottom: 0.8em;
+    }
+    #api-key-container button {
+      padding: 0.5em 1em;
       background: lime;
+      border: none;
       color: black;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    #api-key-container button:disabled {
+      background: #444;
+      cursor: not-allowed;
     }
   </style>
 </head>
 <body>
-  <div id="terminal">🛸 Welcome aboard the U.S.S. Nova\nInitializing AI terminal interface...\n</div>
-  <div id="input-line">
+
+  <div id="api-key-container">
+    <label for="api-key-input">Enter your Gemini API key:</label>
+    <input type="text" id="api-key-input" placeholder="API Key here" />
+    <button id="api-key-submit" disabled>Submit</button>
+  </div>
+
+  <div id="terminal" style="display:none;">
+🛸 Welcome aboard the U.S.S. Nova
+Initializing AI terminal interface...
+  </div>
+
+  <div id="input-line" style="display:none;">
     <input type="text" id="input" autocomplete="off" autofocus />
   </div>
 
   <script>
-    const API_KEY = "api key here"; // Replace with your actual API key
-    const MODEL = "gemini-2.0-flash";
-    const terminal = document.getElementById("terminal");
-    const input = document.getElementById("input");
+    const apiKeyInput = document.getElementById('api-key-input');
+    const apiKeySubmit = document.getElementById('api-key-submit');
+    const apiKeyContainer = document.getElementById('api-key-container');
+    const terminal = document.getElementById('terminal');
+    const inputLine = document.getElementById('input-line');
+    const input = document.getElementById('input');
 
+    let API_KEY = null;
+    const MODEL = "gemini-2.0-flash";
+
+    // Enable submit button only if input is not empty
+    apiKeyInput.addEventListener('input', () => {
+      apiKeySubmit.disabled = !apiKeyInput.value.trim();
+    });
+
+    apiKeySubmit.addEventListener('click', () => {
+      API_KEY = apiKeyInput.value.trim();
+      if (!API_KEY) return;
+
+      // Hide API key input UI
+      apiKeyContainer.style.display = 'none';
+
+      // Show terminal and input line
+      terminal.style.display = 'block';
+      inputLine.style.display = 'flex';
+
+      // Focus input
+      input.focus();
+    });
+
+    // Initial conversation prompt
     const conversation = [
       {
         role: "user",
@@ -62,19 +136,24 @@
           {
             text: `You are the command-line terminal interface of the U.S.S. Nova.
 
-For every command input, respond as if you understand the user’s intention.  
-Never say “invalid command” or “not recognized.”  
-If the command is unusual or unknown, infer what the user likely wants and generate a plausible terminal response consistent with that intention.  
+For every command input, respond as if you understand the user’s intention.
+Never say “invalid command” or “not recognized.”
+If the command is unusual or unknown, infer what the user likely wants and generate a plausible terminal response consistent with that intention.
 
 Respond with structured terminal output: system logs, diagnostics, status updates, warnings, or results.
 
-Never admit ignorance or refuse to answer.  
-Never explain yourself or mention being an AI.  
+Never admit ignorance or refuse to answer.
+Never explain yourself or mention being an AI.
 Always respond as a real starship terminal system.`
           }
         ]
       }
     ];
+
+    function printToTerminal(text) {
+      terminal.innerHTML += text + "\n";
+      terminal.scrollTop = terminal.scrollHeight;
+    }
 
     input.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
@@ -96,11 +175,6 @@ Always respond as a real starship terminal system.`
         });
       }
     });
-
-    function printToTerminal(text) {
-      terminal.innerHTML += text.replace(/\n/g, "<br>") + "<br>";
-      terminal.scrollTop = terminal.scrollHeight;
-    }
 
     async function sendToGemini(convo) {
       try {
