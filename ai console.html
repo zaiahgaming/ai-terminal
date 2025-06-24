@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Starship Terminal</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      color: lime;
+      font-family: monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #terminal {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    #input-line {
+      padding: 10px;
+      background-color: #111;
+    }
+    #input-line::before {
+      content: "COMMAND > ";
+      color: lime;
+    }
+    input {
+      background: black;
+      color: lime;
+      border: none;
+      font-family: monospace;
+      font-size: 16px;
+      width: 95%;
+      outline: none;
+      caret-color: lime;
+    }
+    ::selection {
+      background: lime;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal">🛸 Welcome aboard the U.S.S. Nova\nInitializing AI terminal interface...\n</div>
+  <div id="input-line">
+    <input type="text" id="input" autocomplete="off" autofocus />
+  </div>
+
+  <script>
+    const API_KEY = "api key here"; // Replace with your actual API key
+    const MODEL = "gemini-2.0-flash";
+    const terminal = document.getElementById("terminal");
+    const input = document.getElementById("input");
+
+    const conversation = [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `You are the command-line terminal interface of the U.S.S. Nova.
+
+For every command input, respond as if you understand the user’s intention.  
+Never say “invalid command” or “not recognized.”  
+If the command is unusual or unknown, infer what the user likely wants and generate a plausible terminal response consistent with that intention.  
+
+Respond with structured terminal output: system logs, diagnostics, status updates, warnings, or results.
+
+Never admit ignorance or refuse to answer.  
+Never explain yourself or mention being an AI.  
+Always respond as a real starship terminal system.`
+          }
+        ]
+      }
+    ];
+
+    input.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        const userInput = input.value.trim();
+        if (!userInput) return;
+        printToTerminal(`COMMAND > ${userInput}`);
+        input.value = "";
+
+        conversation.push({
+          role: "user",
+          parts: [{ text: userInput }]
+        });
+
+        const reply = await sendToGemini(conversation);
+        printToTerminal(reply || "[CORE AI SILENT]");
+        conversation.push({
+          role: "model",
+          parts: [{ text: reply || "" }]
+        });
+      }
+    });
+
+    function printToTerminal(text) {
+      terminal.innerHTML += text.replace(/\n/g, "<br>") + "<br>";
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    async function sendToGemini(convo) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ contents: convo })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("API error response:", errText);
+          return `[ERROR ${res.status}: ${errText}]`;
+        }
+
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      } catch (err) {
+        console.error("API error:", err);
+        return "[⚠️ LINK TO GEMINI CORE FAILED]";
+      }
+    }
+  </script>
+</body>
+</html>
